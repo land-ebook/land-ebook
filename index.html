@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>113年統計年報 - 電子書</title>
+    <link rel="stylesheet" href="css/flipbook.min.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0; /* 可以自行調整背景色 */
+            overflow: hidden; /* 避免滾動條 */
+        }
+        .flipbook-viewport {
+            width: 90vw; /* 調整書本的寬度 */
+            height: 80vh; /* 調整書本的高度 */
+            max-width: 1200px; /* 最大寬度限制 */
+            max-height: 900px; /* 最大高度限制 */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* 陰影效果 */
+        }
+        .flipbook .page {
+            background-color: #fff;
+            background-size: contain; /* 確保圖片完全顯示 */
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="flipbook-viewport">
+        <div class="container">
+            <div class="flipbook">
+                <div style="background-image:url(images/113年統計年報_1.jpg);"></div>
+                <div style="background-image:url(images/113年統計年報_2.jpg);"></div>
+                <div style="background-image:url(images/113年統計年報_3.jpg);"></div>
+                <div style="background-image:url(images/113年統計年報_4.jpg);"></div>
+                <div style="background-image:url(images/113年統計年報_109.jpg);"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="js/flipbook.min.js"></script>
+
+    <script type="text/javascript">
+        function loadApp() {
+            var flipbook = $('.flipbook');
+
+            // 檢查是否為平板或手機，以便調整渲染模式
+            // 參考 FlipBook.js 的 Options: https://github.com/fabianlindfors/FlipBook.js#options
+            if (flipbook.width() > 700) {
+                flipbook.turn({
+                    width: flipbook.width(),
+                    height: flipbook.height(),
+                    autoCenter: true
+                });
+            } else {
+                flipbook.turn({
+                    width: flipbook.width(),
+                    height: flipbook.height(),
+                    display: 'single', // 手機模式下顯示單頁
+                    autoCenter: true
+                });
+            }
+
+            // 讓書本自動適應視窗大小
+            $(window).resize(function() {
+                flipbook.turn('size', flipbook.width(), flipbook.height());
+            }).bind('keydown', function(e){
+                if (e.keyCode == 37) // Left arrow
+                    flipbook.turn('previous');
+                else if (e.keyCode == 39) // Right arrow
+                    flipbook.turn('next');
+            });
+        }
+
+        // 等待 DOM 加載完成後執行
+        $(document).ready(function() {
+            loadApp();
+        });
+    </script>
+
+</body>
+</html>
