@@ -1,143 +1,21 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>113年統計年報 - 電子書</title>
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            background-color: #f0f0f0; /* 可以自行調整背景色 */
-            overflow: hidden; /* 避免滾動條 */
-        }
-        #flipbook-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            width: 90vw; /* 調整書本容器的寬度 */
-            height: 80vh; /* 調整書本容器的高度 */
-            max-width: 1200px; /* 最大寬度限制 */
-            max-height: 900px; /* 最大高度限制 */
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); /* 陰影效果 */
-        }
-        #flipbook {
-            width: 100%; /* 書本實際寬度，會由JS調整 */
-            height: 100%; /* 書本實際高度，會由JS調整 */
-        }
-        #flipbook .page {
-            background-color: #fff;
-            background-size: contain; /* 確保圖片完全顯示 */
-            background-repeat: no-repeat;
-            background-position: center;
-            box-shadow: 0 0 20px rgba(0,0,0,0.2); /* 頁面陰影 */
-        }
-        /* 調整單頁模式下的頁面樣式 */
-        @media (max-width: 768px) {
-            #flipbook-container {
-                width: 95vw;
-                height: 90vh;
-            }
-            #flipbook .page {
-                background-size: contain;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>我的電子書櫃</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; }
+    .book { margin: 20px; display: inline-block; }
+    img { width: 150px; }
+  </style>
 </head>
 <body>
-
-    <div id="flipbook-container">
-        <div id="flipbook">
-            <div style="background-image:url(images/113年統計年報_1.jpg);"></div>
-            <div style="background-image:url(images/113年統計年報_2.jpg);"></div>
-            <div style="background-image:url(images/113年統計年報_3.jpg);"></div>
-            <div style="background-image:url(images/113年統計年報_4.jpg);"></div>
-            <div style="background-image:url(images/113年統計年報_109.jpg);"></div>
-        </div>
-    </div>
-
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/turn.js/4.1.0/turn.min.js"></script>
-
-    <script type="text/javascript">
-        function loadApp() {
-            var flipbook = $('#flipbook');
-            var container = $('#flipbook-container');
-
-            // 動態調整書本尺寸
-            function adjustBookSize() {
-                var containerWidth = container.width();
-                var containerHeight = container.height();
-                var pageAspectRatio = 8.5 / 11; // 假設你的圖片是 A4 比例，寬高比 8.5:11 (約 0.77) 或 1:1.414 (A4)
-                // 請根據你的 JPG 圖片實際的寬高比來調整這個值，例如如果圖片是 1000x1414 像素
-                // pageAspectRatio = 1000 / 1414;
-
-                var bookWidth, bookHeight;
-
-                // 判斷是雙頁顯示還是單頁顯示 (通常大螢幕雙頁，小螢幕單頁)
-                if (containerWidth / 2 > containerHeight * pageAspectRatio) { // 可以顯示雙頁
-                    bookHeight = containerHeight;
-                    bookWidth = bookHeight / pageAspectRatio * 2; // 兩頁的寬度
-                    if (bookWidth > containerWidth) { // 如果兩頁寬度超過容器寬度，則以容器寬度為準
-                        bookWidth = containerWidth;
-                        bookHeight = (bookWidth / 2) * pageAspectRatio;
-                    }
-                    flipbook.turn('display', 'double');
-                } else { // 只能顯示單頁
-                    bookWidth = containerWidth;
-                    bookHeight = bookWidth * pageAspectRatio;
-                    if (bookHeight > containerHeight) { // 如果單頁高度超過容器高度
-                        bookHeight = containerHeight;
-                        bookWidth = bookHeight / pageAspectRatio;
-                    }
-                    flipbook.turn('display', 'single');
-                }
-
-                // 確保寬高是偶數，避免 turn.js 出現問題
-                bookWidth = Math.floor(bookWidth / 2) * 2;
-                bookHeight = Math.floor(bookHeight);
-
-                flipbook.turn('size', bookWidth, bookHeight);
-                // 讓書本居中
-                flipbook.css({
-                    marginLeft: (containerWidth - bookWidth) / 2,
-                    marginTop: (containerHeight - bookHeight) / 2
-                });
-            }
-
-            // 初始化 turn.js
-            flipbook.turn({
-                autoCenter: true, // 自動居中書本
-                acceleration: true, // 啟用硬件加速，讓翻頁更流暢
-                pages: 109, // 總頁數，請確保與你的圖片數量一致
-                elevation: 50, // 翻頁時頁面的高度
-                gradients: true, // 啟用漸變效果
-                display: 'double' // 預設顯示為雙頁，會根據寬度自動調整
-            });
-
-            // 初始調整大小
-            adjustBookSize();
-
-            // 監聽視窗大小變化，自動調整書本尺寸
-            $(window).resize(function() {
-                adjustBookSize();
-            }).bind('keydown', function(e){
-                if (e.keyCode == 37) // 左箭頭
-                    flipbook.turn('previous');
-                else if (e.keyCode == 39) // 右箭頭
-                    flipbook.turn('next');
-            });
-        }
-
-        // 等待 DOM 加載完成後執行
-        $(document).ready(function() {
-            loadApp();
-        });
-    </script>
-
+  <h1>📚 我的電子書櫃</h1>
+  <div class="book">
+    <a href="book1/index.html" target="_blank">
+      <img src="book1/cover.jpg" alt="Book 1">
+      <p>電子書一</p>
+    </a>
+  </div>
 </body>
 </html>
