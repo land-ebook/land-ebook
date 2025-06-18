@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>113年統計年報 - 電子書</title>
+
+    <!-- 引入 panzoom 函式庫 -->
+    <script src="https://unpkg.com/@panzoom/panzoom@9.4.0/dist/panzoom.min.js"></script>
+
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #333;
+            overflow: hidden;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
+        }
+
+        #zoomWrapper {
+            width: 100vw;
+            height: 100vh;
+            overflow: auto;
+            touch-action: none;
+            position: relative;
+        }
+
+        .book-container {
+            position: relative;
+            width: 95vw;
+            height: 85vh;
+            max-width: 900px;
+            max-height: 600px;
+            perspective: 1500px;
+            transform-style: preserve-3d;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            background-color: #eee;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 10px auto;
+        }
+
+        .page {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            transition: transform 0.6s ease-in-out, z-index 0.0s 0.3s;
+            backface-visibility: hidden;
+            box-shadow: 0 0 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            background-color: #fff;
+            border: none;
+        }
+
+        .page img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .page:nth-child(odd) {
+            left: 0;
+            transform-origin: right center;
+        }
+
+        .page:nth-child(even) {
+            left: 50%;
+            transform-origin: left center;
+        }
+
+        .flipped {
+            transform: rotateY(-180deg);
+            z-index: 100;
+            transition: transform 0.6s ease-in-out, z-index 0.0s;
+        }
+
+        .page.flipped:nth-child(odd) {
+            left: 0;
+        }
+
+        .page.flipped:nth-child(even) {
+            left: 50%;
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+        }
+
+        .controls button {
+            padding: 8px 15px;
+            margin: 0 10px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.3s;
+        }
+
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+
+        .controls button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        #page-number {
+            color: white;
+            font-size: 1em;
+            margin: 0 15px;
+            white-space: nowrap;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 8px 12px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #6c757d;
+            color: white;
+            transition: background-color 0.3s;
+            text-decoration: none;
+            z-index: 200;
+        }
+
+        .back-button:hover {
+            background-color: #5a6268;
+        }
+
+        .zoom-hint {
+            position: absolute;
+            bottom: 5px;
+            right: 10px;
+            color: #ccc;
+            font-size: 0.8em;
+            z-index: 300;
+        }
+
+        @media (max-width: 480px) {
+            .book-container {
+                width: 98vw;
+                height: 90vh;
+                margin: 5px auto;
+            }
+            .controls button {
+                padding: 6px 12px;
+                margin: 0 5px;
+                font-size: 0.9em;
+            }
+            #page-number {
+                font-size: 0.9em;
+            }
+            .back-button {
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-button">← 返回書櫃</a>
+
+    <div id="zoomWrapper">
+        <div class="book-container" id="bookContainer"></div>
+        <div class="zoom-hint">滑鼠滾輪 / 雙指縮放</div>
+    </div>
+
+    <div class="controls">
+        <button id="prevBtn" disabled>上一頁</button>
+        <span id="page-number">頁碼: 1 - 2 / 109</span>
+        <button id="nextBtn">下一頁</button>
+    </div>
+
+    <script>
+        const totalPages = 109;
+        const imagePrefix = '113年統計年報_';
+        const imageExtension = '.jpg';
+        const bookContainer = document.getElementById('bookContainer');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const pageNumberSpan = document.getElementById('page-number');
+
+        let currentLeaf = 1;
+        const totalLeaves = Math.ceil(totalPages / 2);
+        const placeholderImgSrc = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+        bookContainer.innerHTML = '';
+        for (let i = 1; i <= totalPages; i++) {
+            const page = document.createElement('div');
+            page.classList.add('page');
+            page.id = `page-${i}`;
+            const img = document.createElement('img');
+            img.dataset.src = `${imagePrefix}${i}${imageExtension}`;
+            img.alt = `Page ${i}`;
+            img.src = placeholderImgSrc;
+            page.appendChild(img);
+            bookContainer.appendChild(page);
+        }
+
+        const pages = document.querySelectorAll('.page');
+        const images = document.querySelectorAll('.page img');
+
+        function loadImage(pageIndex) {
+            if (images[pageIndex] && images[pageIndex].dataset.src) {
+                images[pageIndex].src = images[pageIndex].dataset.src;
+                images[pageIndex].removeAttribute('data-src');
+            }
+        }
+
+        function unloadImage(pageIndex) {
+            if (images[pageIndex] && images[pageIndex].src !== placeholderImgSrc) {
+                images[pageIndex].dataset.src = images[pageIndex].src;
+                images[pageIndex].src = placeholderImgSrc;
+            }
+        }
+
+        function updatePageDisplay() {
+            pages.forEach((page, index) => {
+                page.classList.remove('flipped');
+                page.style.zIndex = totalPages - index;
+            });
+
+            const loadBuffer = 2;
+            const currentPageLeftIndex = (currentLeaf - 1) * 2;
+            const currentPageRightIndex = currentPageLeftIndex + 1;
+            const loadStartIndex = Math.max(0, currentPageLeftIndex - loadBuffer);
+            const loadEndIndex = Math.min(totalPages - 1, currentPageRightIndex + loadBuffer);
+
+            pages.forEach((page, index) => {
+                if (index >= loadStartIndex && index <= loadEndIndex) {
+                    loadImage(index);
+                } else {
+                    unloadImage(index);
+                }
+            });
+
+            for (let leaf = 1; leaf < currentLeaf; leaf++) {
+                const leftPageIndex = (leaf - 1) * 2;
+                const rightPageIndex = leftPageIndex + 1;
+                if (pages[leftPageIndex]) pages[leftPageIndex].classList.add('flipped');
+                if (pages[rightPageIndex]) pages[rightPageIndex].classList.add('flipped');
+            }
+
+            if (pages[currentPageLeftIndex]) {
+                pages[currentPageLeftIndex].style.zIndex = totalPages + 1;
+            }
+            if (pages[currentPageRightIndex]) {
+                pages[currentPageRightIndex].style.zIndex = totalPages + 1;
+            }
+
+            prevBtn.disabled = currentLeaf <= 1;
+            nextBtn.disabled = currentLeaf >= totalLeaves;
+
+            const startPage = (currentLeaf - 1) * 2 + 1;
+            const endPage = Math.min(currentLeaf * 2, totalPages);
+            pageNumberSpan.textContent = `頁碼: ${startPage} - ${endPage} / ${totalPages}`;
+        }
+
+        nextBtn.addEventListener('click', () => {
+            if (currentLeaf < totalLeaves) {
+                currentLeaf++;
+                updatePageDisplay();
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentLeaf > 1) {
+                currentLeaf--;
+                updatePageDisplay();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'ArrowRight') {
+                nextBtn.click();
+            } else if (event.key === 'ArrowLeft') {
+                prevBtn.click();
+            }
+        });
+
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const swipeThreshold = 75;
+
+        bookContainer.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        });
+
+        bookContainer.addEventListener('touchend', (e) => {
+            touchEndX = e.changedTouches[0].clientX;
+            handleSwipe();
+        });
+
+        bookContainer.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        function handleSwipe() {
+            if (touchEndX < touchStartX - swipeThreshold) {
+                nextBtn.click();
+            } else if (touchEndX > touchStartX + swipeThreshold) {
+                prevBtn.click();
+            }
+        }
+
+        updatePageDisplay();
+
+        // ✅ 初始化縮放功能
+        document.addEventListener('DOMContentLoaded', () => {
+            const panzoomInstance = Panzoom(bookContainer, {
+                maxScale: 3,
+                minScale: 1,
+                contain: 'outside'
+            });
+            document.getElementById('zoomWrapper').addEventListener('wheel', panzoomInstance.zoomWithWheel);
+        });
+    </script>
+</body>
+</html>
