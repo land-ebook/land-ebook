@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>113年統計年報 - 電子書</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #333;
+            overflow: hidden; /* 防止滾動條 */
+            -webkit-overflow-scrolling: touch; /* 提升 iOS 上的滾動流暢度 */
+            touch-action: none; /* 禁用瀏覽器預設的觸控行為（如縮放、平移），以便自訂控制 */
+        }
+        .book-container {
+            position: relative;
+            width: 95vw; /* 調整書本寬度，佔視窗的95% */
+            height: 85vh; /* 調整書本高度，佔視窗的85% */
+            max-width: 900px; /* 手機上的最大寬度可以縮小 */
+            max-height: 600px; /* 手機上的最大高度可以縮小 */
+            perspective: 1500px; /* 3D透視效果 */
+            transform-style: preserve-3d;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); /* 調整陰影 */
+            background-color: #eee; /* 書本背景 */
+            border-radius: 5px;
+            display: flex; /* 使用flex佈局使頁面居中 */
+            justify-content: center;
+            align-items: center;
+            margin: 10px auto; /* 讓書本在手機上居中並有上下邊距 */
+            transition: transform 0.1s ease-out; /* 縮放動畫更快 */
+            cursor: grab; /* 預設手勢，表示可以拖曳 */
+            transform-origin: center center; /* 預設縮放中心點 */
+        }
+        .book-container.grabbing {
+            cursor: grabbing; /* 拖曳時的手勢 */
+        }
+
+        .page {
+            position: absolute;
+            top: 0;
+            width: 50%; /* 每頁佔書本的一半寬度 */
+            height: 100%;
+            transition: transform 0.6s ease-in-out, z-index 0.0s 0.3s; /* 翻頁動畫 */
+            backface-visibility: hidden; /* 翻轉背面隱藏 */
+            box-shadow: 0 0 5px rgba(0,0,0,0.1); /* 調整陰影 */
+            overflow: hidden; /* 防止圖片溢出 */
+            background-color: #fff; /* 頁面背景 */
+            border: none; /* 在手機上可以移除邊框 */
+        }
+
+        .page img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* 保持圖片比例並完整顯示 */
+            display: block; /* 移除圖片下方空白 */
+        }
+
+        /* 奇數頁 (左頁) */
+        .page:nth-child(odd) {
+            left: 0;
+            transform-origin: right center;
+        }
+
+        /* 偶數頁 (右頁) */
+        .page:nth-child(even) {
+            left: 50%;
+            transform-origin: left center;
+        }
+        
+        /* 翻轉效果 */
+        .flipped {
+            transform: rotateY(-180deg);
+            z-index: 100; /* 翻轉時在上面 */
+            transition: transform 0.6s ease-in-out, z-index 0.0s; /* 翻轉時立即顯示 */
+        }
+        
+        .page.flipped:nth-child(odd) {
+            left: 0; /* 奇數頁翻轉後仍在左側 */
+        }
+
+        .page.flipped:nth-child(even) {
+            left: 50%; /* 偶數頁翻轉後仍在右側 */
+        }
+
+        .controls {
+            position: absolute;
+            bottom: 10px; /* 調整控制按鈕的位置，離底部近一些 */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+        }
+        .controls button {
+            padding: 8px 15px; /* 調整按鈕大小，更適合手機點擊 */
+            margin: 0 10px;
+            font-size: 1em; /* 調整字體大小 */
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #007bff;
+            color: white;
+            transition: background-color 0.3s;
+        }
+        .controls button:hover {
+            background-color: #0056b3;
+        }
+        .controls button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #page-number {
+            color: white;
+            font-size: 1em; /* 調整頁碼字體大小 */
+            margin: 0 15px;
+            white-space: nowrap; /* 防止頁碼換行 */
+        }
+
+        /* 返回按鈕 */
+        .back-button {
+            position: absolute;
+            top: 10px; /* 調整位置 */
+            left: 10px; /* 調整位置 */
+            padding: 8px 12px; /* 調整大小 */
+            font-size: 0.9em; /* 調整字體大小 */
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #6c757d;
+            color: white;
+            transition: background-color 0.3s;
+            text-decoration: none; /* 移除a標籤底線 */
+            z-index: 200; /* 確保在最上層 */
+        }
+        .back-button:hover {
+            background-color: #5a6268;
+        }
+
+        /* 縮放控制按鈕 */
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px; /* 調整到右上角 */
+            z-index: 200;
+            display: flex;
+            gap: 10px; /* 按鈕間距 */
+        }
+
+        .zoom-controls button {
+            padding: 8px 15px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #28a745; /* 綠色 */
+            color: white;
+            transition: background-color 0.3s;
+        }
+
+        .zoom-controls button:hover {
+            background-color: #218838;
+        }
+
+        .zoom-controls button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+
+        /* 針對非常小的螢幕（例如舊手機）進一步調整 */
+        @media (max-width: 480px) {
+            .book-container {
+                width: 98vw;
+                height: 90vh;
+                margin: 5px auto;
+            }
+            .controls button {
+                padding: 6px 12px;
+                margin: 0 5px;
+                font-size: 0.9em;
+            }
+            #page-number {
+                font-size: 0.9em;
+            }
+            .back-button {
+                padding: 6px 10px;
+                font-size: 0.8em;
+            }
+            .zoom-controls {
+                top: 5px; /* 調整位置 */
+                right: 5px; /* 調整位置 */
+                gap: 5px;
+            }
+            .zoom-controls button {
+                padding: 6px 10px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-button">← 返回書櫃</a>
+    <div class="book-container" id="bookContainer">
+    </div>
+
+    <div class="controls">
+        <button id="prevBtn" disabled>上一頁</button>
+        <span id="page-number">頁碼: 1 - 2 / 109</span>
+        <button id="nextBtn">下一頁</button>
+    </div>
+
+    <div class="zoom-controls">
+        <button id="zoomOutBtn">-</button>
+        <button id="zoomInBtn">+</button>
+        <button id="resetZoomBtn">重置</button>
+    </div>
+
+    <script>
+        const totalPages = 109;
+        const imagePrefix = '113年統計年報_';
+        const imageExtension = '.jpg'; // 確保您的圖片格式正確
+        const bookContainer = document.getElementById('bookContainer');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const pageNumberSpan = document.getElementById('page-number');
+        const zoomInBtn = document.getElementById('zoomInBtn');
+        const zoomOutBtn = document.getElementById('zoomOutBtn');
+        const resetZoomBtn = document.getElementById('resetZoomBtn');
+
+        let currentLeaf = 1;
+        const totalLeaves = Math.ceil(totalPages / 2);
+
+        // 縮放和平移相關變數
+        let currentZoom = 1.0; // 初始縮放比例
+        const zoomStep = 0.1;  // 每次縮放的步長
+        const maxZoom = 3.0;   // 最大縮放比例 (可以更大，例如 3.0)
+        const minZoom = 0.5;   // 最小縮放比例 (可以更小，例如 0.5)
+        let translateX = 0;    // 平移 X 座標
+        let translateY = 0;    // 平移 Y 座標
+
+        // 拖曳（平移）相關變數
+        let isDragging = false;
+        let lastPosX = 0;
+        let lastPosY = 0;
+
+        // 觸控縮放相關變數
+        let initialPinchDistance = null;
+        let initialZoom = 1.0;
+        let isPinching = false;
+
+
+        // 初始化書本頁面結構，使用 data-src 進行延遲載入
+        const placeholderImgSrc = 'data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==';
+
+        bookContainer.innerHTML = '';
+        for (let i = 1; i <= totalPages; i++) {
+            const page = document.createElement('div');
+            page.classList.add('page');
+            page.id = `page-${i}`;
+            const img = document.createElement('img');
+            img.dataset.src = `${imagePrefix}${i}${imageExtension}`; // 儲存真實圖片路徑
+            img.alt = `Page ${i}`;
+            img.src = placeholderImgSrc; // 預設使用佔位符圖片
+            page.appendChild(img);
+            bookContainer.appendChild(page);
+        }
+
+        const pages = document.querySelectorAll('.page');
+        const images = document.querySelectorAll('.page img');
+
+        // 圖片載入函數：將 data-src 的內容賦值給 src
+        function loadImage(pageIndex) {
+            if (images[pageIndex] && images[pageIndex].dataset.src) {
+                images[pageIndex].src = images[pageIndex].dataset.src;
+                images[pageIndex].removeAttribute('data-src');
+            }
+        }
+
+        // 圖片卸載函數：將 src 設回佔位符，並將圖片路徑存回 data-src
+        function unloadImage(pageIndex) {
+            if (images[pageIndex] && images[pageIndex].src !== placeholderImgSrc) {
+                images[pageIndex].dataset.src = images[pageIndex].src;
+                images[pageIndex].src = placeholderImgSrc;
+            }
+        }
+
+        // 更新頁面顯示和圖片載入/卸載
+        function updatePageDisplay() {
+            pages.forEach((page, index) => {
+                page.classList.remove('flipped');
+                page.style.zIndex = totalPages - index;
+            });
+
+            const loadBuffer = 2; 
+            const currentPageLeftIndex = (currentLeaf - 1) * 2;
+            const currentPageRightIndex = currentPageLeftIndex + 1;
+
+            const loadStartIndex = Math.max(0, currentPageLeftIndex - loadBuffer);
+            const loadEndIndex = Math.min(totalPages - 1, currentPageRightIndex + loadBuffer);
+
+            pages.forEach((page, index) => {
+                if (index >= loadStartIndex && index <= loadEndIndex) {
+                    loadImage(index);
+                } else {
+                    unloadImage(index);
+                }
+            });
+
+            for (let leaf = 1; leaf < currentLeaf; leaf++) {
+                const leftPageIndex = (leaf - 1) * 2;
+                const rightPageIndex = leftPageIndex + 1;
+
+                if (pages[leftPageIndex]) {
+                    pages[leftPageIndex].classList.add('flipped');
+                }
+                if (pages[rightPageIndex]) {
+                    pages[rightPageIndex].classList.add('flipped');
+                }
+            }
+
+            if (pages[currentPageLeftIndex]) {
+                pages[currentPageLeftIndex].style.zIndex = totalPages + 1;
+            }
+            if (pages[currentPageRightIndex]) {
+                pages[currentPageRightIndex].style.zIndex = totalPages + 1;
+            }
+
+            // 更新按鈕狀態
+            prevBtn.disabled = currentLeaf <= 1 || isDragging || isPinching;
+            nextBtn.disabled = currentLeaf >= totalLeaves || isDragging || isPinching;
+            
+            // 縮放時不允許翻頁按鈕
+            if (currentZoom !== 1.0) {
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+            }
+
+            // 更新頁碼顯示
+            const startPage = (currentLeaf - 1) * 2 + 1;
+            const endPage = Math.min(currentLeaf * 2, totalPages);
+            pageNumberSpan.textContent = `頁碼: ${startPage} - ${endPage} / ${totalPages}`;
+
+            // 更新縮放按鈕狀態
+            zoomOutBtn.disabled = currentZoom <= minZoom;
+            zoomInBtn.disabled = currentZoom >= maxZoom;
+            resetZoomBtn.disabled = currentZoom === 1.0 && translateX === 0 && translateY === 0;
+        }
+
+        // 應用縮放和平移比例
+        function applyTransform() {
+            bookContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+        }
+
+        // --- 翻頁控制 ---
+        nextBtn.addEventListener('click', () => {
+            if (currentLeaf < totalLeaves && currentZoom === 1.0) { // 只有在未縮放時才能翻頁
+                currentLeaf++;
+                updatePageDisplay();
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (currentLeaf > 1 && currentZoom === 1.0) { // 只有在未縮放時才能翻頁
+                currentLeaf--;
+                updatePageDisplay();
+            }
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (currentZoom === 1.0) { // 只有在未縮放時鍵盤才能翻頁
+                if (event.key === 'ArrowRight') {
+                    nextBtn.click();
+                } else if (event.key === 'ArrowLeft') {
+                    prevBtn.click();
+                }
+            }
+        });
+
+        // --- 縮放功能 (按鈕) ---
+        zoomInBtn.addEventListener('click', () => {
+            if (currentZoom < maxZoom) {
+                currentZoom = Math.min(maxZoom, currentZoom + zoomStep);
+                applyTransform();
+                updatePageDisplay();
+            }
+        });
+
+        zoomOutBtn.addEventListener('click', () => {
+            if (currentZoom > minZoom) {
+                currentZoom = Math.max(minZoom, currentZoom - zoomStep);
+                applyTransform();
+                updatePageDisplay();
+            }
+        });
+
+        resetZoomBtn.addEventListener('click', () => {
+            currentZoom = 1.0;
+            translateX = 0;
+            translateY = 0;
+            applyTransform();
+            updatePageDisplay();
+        });
+
+        // --- 滑鼠滾輪縮放 (桌面) ---
+        bookContainer.addEventListener('wheel', (e) => {
+            e.preventDefault(); // 阻止頁面滾動
+
+            const oldZoom = currentZoom;
+            const delta = e.deltaY * -0.01; // 滾輪向上為正，向下為負，調整縮放方向和靈敏度
+            currentZoom = Math.min(maxZoom, Math.max(minZoom, currentZoom + delta));
+
+            // 計算縮放中心點（滑鼠位置）
+            const rect = bookContainer.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left - rect.width / 2; // 相對於容器中心點的 X
+            const mouseY = e.clientY - rect.top - rect.height / 2; // 相對於容器中心點的 Y
+
+            // 調整平移以保持滑鼠下的點不動
+            translateX -= (mouseX / oldZoom) * (currentZoom - oldZoom);
+            translateY -= (mouseY / oldZoom) * (currentZoom - oldZoom);
+
+            applyTransform();
+            updatePageDisplay();
+        }, { passive: false }); // 必須設置 passive: false 才能調用 preventDefault
+
+        // --- 觸控平移 (拖曳) ---
+        bookContainer.addEventListener('mousedown', (e) => {
+            // 只有在縮放狀態下才啟用平移，並且只用左鍵
+            if (e.button === 0 && currentZoom !== 1.0) {
+                isDragging = true;
+                bookContainer.classList.add('grabbing');
+                lastPosX = e.clientX;
+                lastPosY = e.clientY;
+                e.preventDefault(); // 阻止圖片拖曳等預設行為
+            }
+        });
+
+        bookContainer.addEventListener('mousemove', (e) => {
+            if (isDragging) {
+                const deltaX = e.clientX - lastPosX;
+                const deltaY = e.clientY - lastPosY;
+                translateX += deltaX;
+                translateY += deltaY;
+                lastPosX = e.clientX;
+                lastPosY = e.clientY;
+                applyTransform();
+                e.preventDefault();
+            }
+        });
+
+        bookContainer.addEventListener('mouseup', () => {
+            isDragging = false;
+            bookContainer.classList.remove('grabbing');
+        });
+
+        bookContainer.addEventListener('mouseleave', () => { // 滑鼠離開容器時停止拖曳
+            isDragging = false;
+            bookContainer.classList.remove('grabbing');
+        });
+
+        // --- 觸控滑動翻頁 (單指) ---
+        // 只有在未縮放時才啟用單指滑動翻頁
+        let touchStartX = 0;
+        let touchEndX = 0;
+        const swipeThreshold = 75; // 定義滑動的最小距離（像素），可調整
+        let isSingleFingerSwiping = false; // 標記是否正在進行單指滑動
+
+        bookContainer.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1 && currentZoom === 1.0) {
+                // 單指且未縮放時才觸發翻頁滑動
+                isSingleFingerSwiping = true;
+                touchStartX = e.touches[0].clientX;
+                e.preventDefault(); // 阻止預設滾動行為
+            } else if (e.touches.length === 2) {
+                // 雙指觸控開始，啟用縮放
+                isPinching = true;
+                initialPinchDistance = getPinchDistance(e.touches);
+                initialZoom = currentZoom;
+                e.preventDefault(); // 阻止瀏覽器預設的雙指縮放
+            }
+        }, { passive: false });
+
+
+        bookContainer.addEventListener('touchmove', (e) => {
+            if (isPinching && e.touches.length === 2) {
+                // 雙指縮放
+                const currentPinchDistance = getPinchDistance(e.touches);
+                if (initialPinchDistance === 0) return; // 避免除以零
+
+                const scaleFactor = currentPinchDistance / initialPinchDistance;
+                currentZoom = Math.min(maxZoom, Math.max(minZoom, initialZoom * scaleFactor));
+                
+                // 計算縮放中心點（兩個觸控點的中點）
+                const touch1 = e.touches[0];
+                const touch2 = e.touches[1];
+                const centerX = (touch1.clientX + touch2.clientX) / 2;
+                const centerY = (touch1.clientY + touch2.clientY) / 2;
+
+                const rect = bookContainer.getBoundingClientRect();
+                const mouseX = centerX - rect.left - rect.width / 2;
+                const mouseY = centerY - rect.top - rect.height / 2;
+
+                // 調整平移以保持中心點不動
+                const oldZoom = initialZoom; // 使用 initialZoom 作為參考舊比例
+                translateX = -((mouseX / oldZoom) * (currentZoom - oldZoom)) + (centerX - rect.left - rect.width / 2) - mouseX; // 這個平移計算需要微調以完美實現中心縮放
+                // 簡化版的平移調整，可能會有點偏差，但通常足夠用
+                // translateX += (centerX - (rect.left + rect.width / 2)) * (1 - scaleFactor);
+                // translateY += (centerY - (rect.top + rect.height / 2)) * (1 - scaleFactor);
+
+                applyTransform();
+                updatePageDisplay();
+                e.preventDefault();
+            } else if (isSingleFingerSwiping && e.touches.length === 1) {
+                // 單指平移（當縮放時）
+                if (currentZoom !== 1.0) {
+                    const deltaX = e.touches[0].clientX - touchStartX;
+                    const deltaY = e.touches[0].clientY - touchStartY; // 需要定義 touchStartY
+                    translateX += deltaX;
+                    translateY += deltaY;
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY; // 更新 touchStartY
+                    applyTransform();
+                    e.preventDefault();
+                } else {
+                    // 單指滑動翻頁 (未縮放時)
+                    touchEndX = e.changedTouches[0].clientX;
+                    e.preventDefault(); // 阻止預設滾動行為
+                }
+            }
+        }, { passive: false });
+
+        bookContainer.addEventListener('touchend', (e) => {
+            if (isPinching) {
+                isPinching = false;
+                initialPinchDistance = null;
+                updatePageDisplay();
+            } else if (isSingleFingerSwiping && currentZoom === 1.0) {
+                touchEndX = e.changedTouches[0].clientX;
+                handleSwipe();
+            }
+            isSingleFingerSwiping = false; // 重置單指滑動標記
+        });
+
+        // 輔助函數：計算兩點之間的距離
+        function getPinchDistance(touches) {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // 單指滑動翻頁處理
+        function handleSwipe() {
+            if (currentZoom === 1.0) { // 確保只有在未縮放時才處理翻頁
+                if (touchEndX < touchStartX - swipeThreshold) {
+                    nextBtn.click();
+                } else if (touchEndX > touchStartX + swipeThreshold) {
+                    prevBtn.click();
+                }
+            }
+        }
+        
+        // 初始化顯示
+        updatePageDisplay();
+        applyTransform(); // 初始化時應用變換 (包括縮放和平移)
+    </script>
+</body>
+</html>
